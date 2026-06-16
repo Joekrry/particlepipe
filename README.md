@@ -1,8 +1,8 @@
 # ParticlePipe
 
-**Project**: ParticlePipe — a high-energy-physics (HEP) data pipeline and analysis backend (Python, FastAPI).
+**Project**: ParticlePipe - a high-energy-physics (HEP) data pipeline and analysis backend (Python, FastAPI).
 
-**About**: Experimental particle physics produces collision data that must be generated, filtered, reconstructed and analysed through a chain of well-separated processing stages. ParticlePipe models that chain as a Python backend: an LHC-style collision generator, a multi-level trigger, reconstruction and analysis, and an HTTP service for results. The physics mathematics — Lorentz 4-vectors, invariant-mass spectra, histogramming and track fitting — is implemented from first principles, with no `numpy`, `ROOT` or `Pythia` in the domain core, so the algorithms are explicit and the package stays deployable in restricted environments.
+**About**: Experimental particle physics produces collision data that must be generated, filtered, reconstructed and analysed through a chain of well-separated processing stages. ParticlePipe models that chain as a Python backend: an LHC-style collision generator, a multi-level trigger, reconstruction and analysis, and an HTTP service for results. The physics mathematics - Lorentz 4-vectors, invariant-mass spectra, histogramming and track fitting - is implemented from first principles, with no `numpy`, `ROOT` or `Pythia` in the domain core, so the algorithms are explicit and the package stays deployable in restricted environments.
 
 **Technical Expectations**
 
@@ -61,19 +61,19 @@ The package version is declared in `src/__init__.py` (`__version__ = "1.0.0"`).
 Dependencies are pinned by lower bound in `requirements.txt`.
 
 - Web and API
-  - `fastapi` (>=0.110.0) — asynchronous web framework for the service layer
-  - `uvicorn[standard]` (>=0.29.0) — ASGI server
-  - `pydantic` (>=2.6.0) — typed data contracts
-  - `httpx` (>=0.27.0) — async HTTP client used in tests
+  - `fastapi` (>=0.110.0) - asynchronous web framework for the service layer
+  - `uvicorn[standard]` (>=0.29.0) - ASGI server
+  - `pydantic` (>=2.6.0) - typed data contracts
+  - `httpx` (>=0.27.0) - async HTTP client used in tests
 - Persistence
-  - `aiosqlite` (>=0.20.0) — async SQLite access (PostgreSQL via `asyncpg` in production)
+  - `aiosqlite` (>=0.20.0) - async SQLite access (PostgreSQL via `asyncpg` in production)
 - Testing
   - `pytest` (>=8.0.0), `pytest-asyncio` (>=0.23.0), `pytest-cov` (>=5.0.0)
-  - `hypothesis` (>=6.100.0) — property-based testing
+  - `hypothesis` (>=6.100.0) - property-based testing
 - Tooling
-  - `ruff` (>=0.3.0) — linter
-  - `mypy` (>=1.9.0) — static type checker
-  - `black` (>=24.0.0) — formatter
+  - `ruff` (>=0.3.0) - linter
+  - `mypy` (>=1.9.0) - static type checker
+  - `black` (>=24.0.0) - formatter
 
 ### Installation Instructions
 
