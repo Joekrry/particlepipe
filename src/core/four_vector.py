@@ -70,10 +70,10 @@ class FourVector:
     @property
     def eta(self) -> float:
         """Pseudorapidity η = -ln(tan(θ/2)); +inf along the beam axis."""
-        sin_half_theta = math.sin(self.theta / 2.0)
-        if sin_half_theta <= 0.0:
+        tan_half_theta = math.tan(self.theta / 2.0)
+        if tan_half_theta <= 0.0:
             return float("inf")
-        return -math.log(sin_half_theta)
+        return -math.log(tan_half_theta)
 
     @property
     def rapidity(self) -> float:
