@@ -31,15 +31,15 @@ The repository is organised as a layered Python package under `src/`, with an ac
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ Interface   src/api        FastAPI application, SSE streaming  │
+│ Interface   src/api       FastAPI application, SSE streaming │
 ├──────────────────────────────────────────────────────────────┤
-│ Engines     src/pipeline   event generation + trigger chain    │
-│             src/analysis   histograms, spectra, peak finding   │
+│ Engines     src/pipeline   event generation + trigger chain  │
+│             src/analysis   histograms, spectra, peak finding │
 ├──────────────────────────────────────────────────────────────┤
-│ Domain      src/core       4-vectors, particles, events        │
+│ Domain      src/core       4-vectors, particles, events      │
 ├──────────────────────────────────────────────────────────────┤
-│ Support     src/models     Pydantic data contracts             │
-│             src/utils      logging, metrics, helpers           │
+│ Support     src/models     Pydantic data contracts           │
+│             src/utils      logging, metrics, helpers         │
 └──────────────────────────────────────────────────────────────┘
         dependencies point downward; lower layers never import upper
 ```
