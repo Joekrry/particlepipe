@@ -18,12 +18,12 @@ class FourVector:
     py: float  # GeV/c
     pz: float  # GeV/c
 
-    # ── Constructors ──────────────────────────────────────────────────────
+    # --- Constructors ---
     @classmethod
     def from_mass_and_momentum(
         cls, mass: float, px: float, py: float, pz: float
     ) -> FourVector:
-        """Build from rest mass and 3-momentum via E² = m² + |p|²."""
+        """Build from rest mass and 3-momentum via E^2 = m^2 + |p|^2."""
         p2 = px * px + py * py + pz * pz
         E = math.sqrt(max(mass * mass + p2, 0.0))
         return cls(E=E, px=px, py=py, pz=pz)
@@ -38,10 +38,10 @@ class FourVector:
         pz = pt * math.sinh(eta)
         return cls.from_mass_and_momentum(mass, px, py, pz)
 
-    # ── Lorentz-invariant quantities ──────────────────────────────────────
+    # --- Lorentz-invariant quantities ---
     @property
     def invariant_mass(self) -> float:
-        """m = √(E² - |p|²); a negative m² from rounding is clamped to 0."""
+        """m = sqrt(E^2 - |p|^2); a negative m^2 from rounding is clamped to 0."""
         m2 = self.E ** 2 - (self.px ** 2 + self.py ** 2 + self.pz ** 2)
         return math.sqrt(max(m2, 0.0))
 
@@ -49,14 +49,14 @@ class FourVector:
     def mass(self) -> float:
         return self.invariant_mass
 
-    # ── Transverse plane (collider frame) ─────────────────────────────────
+    # --- Transverse plane (collider frame) ---
     @property
     def pt(self) -> float:
         return math.sqrt(self.px ** 2 + self.py ** 2)
 
     @property
     def phi(self) -> float:
-        """Azimuthal angle in (-π, π]."""
+        """Azimuthal angle in (-pi, pi]."""
         return math.atan2(self.py, self.px)
 
     @property
@@ -69,7 +69,7 @@ class FourVector:
 
     @property
     def eta(self) -> float:
-        """Pseudorapidity η = -ln(tan(θ/2)); +inf along the beam axis."""
+        """Pseudorapidity eta = -ln(tan(theta/2)); +inf along the beam axis."""
         tan_half_theta = math.tan(self.theta / 2.0)
         if tan_half_theta <= 0.0:
             return float("inf")
@@ -77,7 +77,7 @@ class FourVector:
 
     @property
     def rapidity(self) -> float:
-        """Rapidity y = ½·ln((E+pz)/(E-pz)); invariant under z-boosts."""
+        """Rapidity y = 0.5*ln((E+pz)/(E-pz)); invariant under z-boosts."""
         denom = self.E - self.pz
         if denom <= 0.0:
             return float("inf")
@@ -89,18 +89,18 @@ class FourVector:
 
     @property
     def beta(self) -> float:
-        """Velocity β = |p|/E."""
+        """Velocity beta = |p|/E."""
         return self.p3_mag / self.E if self.E > 0 else 0.0
 
     @property
     def gamma(self) -> float:
-        """Lorentz factor γ = E/m; +inf for a massless vector."""
+        """Lorentz factor gamma = E/m; +inf for a massless vector."""
         m = self.invariant_mass
         return self.E / m if m > 0 else float("inf")
 
-    # ── Angular separation ────────────────────────────────────────────────
+    # --- Angular separation ---
     def delta_phi(self, other: FourVector) -> float:
-        """Δφ wrapped into (-π, π]."""
+        """delta-phi wrapped into (-pi, pi]."""
         dphi = self.phi - other.phi
         while dphi > math.pi:
             dphi -= 2 * math.pi
@@ -112,10 +112,10 @@ class FourVector:
         return self.eta - other.eta
 
     def delta_r(self, other: FourVector) -> float:
-        """ΔR = √(Δη² + Δφ²), the standard HEP angular distance."""
+        """dR = sqrt(d_eta^2 + d_phi^2), the standard HEP angular distance."""
         return math.sqrt(self.delta_eta(other) ** 2 + self.delta_phi(other) ** 2)
 
-    # ── Arithmetic ────────────────────────────────────────────────────────
+    # --- Arithmetic ---
     def __add__(self, other: FourVector) -> FourVector:
         return FourVector(
             E=self.E + other.E,
@@ -146,7 +146,7 @@ class FourVector:
                 - self.py * other.py
                 - self.pz * other.pz)
 
-    # ── Lorentz boost ─────────────────────────────────────────────────────
+    # --- Lorentz boost ---
     def boost_to_rest_frame(self) -> FourVector:
         """Boost into this vector's own rest frame.
 

@@ -1,25 +1,25 @@
 # ParticlePipe
 
-**Project**: ParticlePipe - a high-energy-physics (HEP) data pipeline and analysis backend (Python, FastAPI).
+**Project**: ParticlePipe - a high-energy-physics (HEP) data pipeline and analysis backend (Python).
 
-**About**: Experimental particle physics produces collision data that must be generated, filtered, reconstructed and analysed through a chain of well-separated processing stages. ParticlePipe models that chain as a Python backend: an LHC-style collision generator, a multi-level trigger, reconstruction and analysis, and an HTTP service for results. The physics mathematics - Lorentz 4-vectors, invariant-mass spectra, histogramming and track fitting - is implemented from first principles, with no `numpy`, `ROOT` or `Pythia` in the domain core, so the algorithms are explicit and the package stays deployable in restricted environments.
+**About**: Experimental particle physics produces collision data that must be generated, filtered, reconstructed and analysed through a chain of well-separated processing stages. ParticlePipe builds that chain as a layered Python backend, implementing the physics from first principles with no `numpy`, `ROOT` or `Pythia` in the domain core. It provides relativistic four-vector kinematics, a PDG-accurate particle database, and a collision-event model, together with a seedable Monte Carlo generator that produces Z, J/psi, Higgs-diphoton and minimum-bias events.
 
 **Technical Expectations**
 
-1. Layered architecture with a single, downward dependency direction from the domain core to the service interface.
-1. Physics algorithms implemented from first principles, without a scientific-computing dependency in `src/core`, `src/pipeline` or `src/analysis`.
+1. Layered architecture with a single, downward dependency direction from the domain core outward.
+1. Physics algorithms implemented from first principles, with no scientific-computing dependency in the domain core.
+1. Deterministic, reproducible event generation from an explicit seed.
 1. Static typing and consistent formatting enforced through `mypy`, `ruff` and `black`.
-1. An asynchronous HTTP interface built on `fastapi` and `pydantic` v2.
-1. An automated test harness using `pytest`, `pytest-asyncio` and property-based testing with `hypothesis`.
-1. Version control with a Python-oriented `.gitignore`.
+1. ASCII-only, dependency-light source that stays portable across platforms and terminals.
 
 ---
 
 ## Table of Contents
 
 1. [General Description](#general-description)
-2. [Installation Instructions](#installation-instructions)
-3. [References](#references)
+2. [Usage](#usage)
+3. [Installation Instructions](#installation-instructions)
+4. [References](#references)
 
 ---
 
@@ -27,55 +27,68 @@
 
 ### Overview
 
-The repository is organised as a layered Python package under `src/`, with an accompanying test tree under `tests/`. Each layer is an importable package, and the dependency direction runs strictly downward: an interface layer may import an engine, an engine may import the domain core, but never the reverse. Cross-cutting concerns (data contracts and helpers) sit alongside the layers and are used by all of them.
+The repository is organised as a layered Python package under `src/`, with an accompanying test tree under `tests/`. Each layer is an importable package, and the dependency direction runs strictly downward: an interface layer may import an engine, an engine may import the domain core, but never the reverse.
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│ Interface   src/api        FastAPI application, SSE streaming  │
-├──────────────────────────────────────────────────────────────┤
-│ Engines     src/pipeline   event generation + trigger chain    │
-│             src/analysis   histograms, spectra, peak finding   │
-├──────────────────────────────────────────────────────────────┤
-│ Domain      src/core       4-vectors, particles, events        │
-├──────────────────────────────────────────────────────────────┤
-│ Support     src/models     Pydantic data contracts             │
-│             src/utils      logging, metrics, helpers           │
-└──────────────────────────────────────────────────────────────┘
++--------------------------------------------------------------+
+| Interface   src/api        FastAPI application, SSE streaming |
++--------------------------------------------------------------+
+| Engines     src/pipeline   event generation + trigger chain  |
+|             src/analysis   histograms, spectra, peak finding  |
++--------------------------------------------------------------+
+| Domain      src/core       4-vectors, particles, events      |
++--------------------------------------------------------------+
+| Support     src/models     Pydantic data contracts           |
+|             src/utils      logging, metrics, helpers          |
++--------------------------------------------------------------+
         dependencies point downward; lower layers never import upper
 ```
 
-| Layer | Folder | Responsibility |
-|-------|--------|----------------|
-| Domain core | `src/core` | Particles, events and Lorentz 4-vectors |
-| Generation and triggering | `src/pipeline` | Monte Carlo event generator and multi-level trigger chain |
-| Analysis | `src/analysis` | Histograms, invariant-mass spectra and peak finding |
-| Interface | `src/api` | FastAPI REST application with server-sent-event streaming |
-| Data contracts | `src/models` | Pydantic request and response schemas |
-| Support | `src/utils` | Logging, metrics and shared helpers |
-| Tests | `tests/unit`, `tests/integration` | Unit and end-to-end test suites |
+### Domain model and generator
+
+| Module | Key types | Responsibility |
+|--------|-----------|----------------|
+| `src/core/four_vector.py` | `FourVector`, `invariant_mass` | Immutable relativistic 4-momentum in the (+,-,-,-) metric: invariant mass, general and rest-frame Lorentz boosts, `pt`/`eta`/`phi`/`theta`/`rapidity`, and the `dR` angular separation. |
+| `src/core/particles.py` | `PDG`, `ParticleType`, `Particle` | PDG-2022 masses and charges for 27 species, with a particle object carrying kinematics and reconstruction state. |
+| `src/core/event.py` | `Event`, `TriggerBit`, `PrimaryVertex`, `EventMetadata` | The collision-event record: particle collection, trigger bitmask, primary vertex, run metadata, and event-level observables (scalar HT, missing ET, latency). |
+| `src/pipeline/generator.py` | `CollisionGenerator`, `GeneratorConfig` | Seedable Monte Carlo generator: Z->ll, J/psi->mumu, H->gamma gamma and minimum-bias events, with isotropic two-body decay boosted to the lab frame and beam-profile vertex smearing. |
 
 The package version is declared in `src/__init__.py` (`__version__ = "1.0.0"`).
 
-**Extra (3rd-party) tools and packages**
+**Dependencies**: the domain core and generator depend only on the Python standard library (`math`, `random`, `dataclasses`, `enum`). The project manifest (`requirements.txt`) additionally declares `fastapi`, `uvicorn` and `pydantic` for the service layer, `aiosqlite` for persistence, `pytest`, `pytest-asyncio`, `pytest-cov` and `hypothesis` for testing, and `ruff`, `mypy` and `black` for tooling.
 
-Dependencies are pinned by lower bound in `requirements.txt`.
+---
 
-- Web and API
-  - `fastapi` (>=0.110.0) - asynchronous web framework for the service layer
-  - `uvicorn[standard]` (>=0.29.0) - ASGI server
-  - `pydantic` (>=2.6.0) - typed data contracts
-  - `httpx` (>=0.27.0) - async HTTP client used in tests
-- Persistence
-  - `aiosqlite` (>=0.20.0) - async SQLite access (PostgreSQL via `asyncpg` in production)
-- Testing
-  - `pytest` (>=8.0.0), `pytest-asyncio` (>=0.23.0), `pytest-cov` (>=5.0.0)
-  - `hypothesis` (>=6.100.0) - property-based testing
-- Tooling
-  - `ruff` (>=0.3.0) - linter
-  - `mypy` (>=1.9.0) - static type checker
-  - `black` (>=24.0.0) - formatter
+## Usage
 
-### Installation Instructions
+Reconstruct the Z mass from two back-to-back muons:
+
+```python
+import math
+from src.core.four_vector import FourVector
+
+m_z, m_mu = 91.1876, 0.105658
+p = math.sqrt((m_z / 2) ** 2 - m_mu ** 2)
+mu_plus = FourVector(m_z / 2, p, 0.0, 0.0)
+mu_minus = FourVector(m_z / 2, -p, 0.0, 0.0)
+print((mu_plus + mu_minus).invariant_mass)   # 91.1876
+```
+
+Generate collision events and read event-level observables:
+
+```python
+from src.pipeline.generator import CollisionGenerator, GeneratorConfig
+
+gen = CollisionGenerator(GeneratorConfig(seed=42, z_fraction=0.1))
+for event in gen.generate(1000):
+    print(event.n_particles, round(event.missing_et, 2))
+```
+
+Generation is reproducible: two generators built with the same seed produce identical events. Run examples with the package on the path, for example `PYTHONPATH=. python your_script.py`.
+
+---
+
+## Installation Instructions
 
 **Prerequisites**
 
@@ -106,7 +119,4 @@ Installation has no side effects beyond populating the virtual environment; ther
 
 ## References
 
-- Ramírez, S. (2024) *FastAPI documentation*. Available at: https://fastapi.tiangolo.com (Accessed: 15 June 2026).
-- Pydantic (2024) *Pydantic v2 documentation*. Available at: https://docs.pydantic.dev/latest/ (Accessed: 15 June 2026).
-- pytest Development Team (2024) *pytest documentation*. Available at: https://docs.pytest.org/ (Accessed: 15 June 2026).
-- MacIver, D.R. (2024) *Hypothesis documentation*. Available at: https://hypothesis.readthedocs.io/ (Accessed: 15 June 2026).
+- Particle Data Group, Workman, R.L. et al. (2022) Review of Particle Physics. *Progress of Theoretical and Experimental Physics*, 2022(8), 083C01. DOI: 10.1093/ptep/ptac097. Available at: https://pdg.lbl.gov/ (Accessed: 15 June 2026).

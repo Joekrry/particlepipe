@@ -148,7 +148,7 @@ class Particle:
     is_reconstructed: bool = False
     detector_hits: int = 0
     track_chi2: float = 0.0
-    isolation: float = 0.0  # ΣpT of other tracks within ΔR < 0.4
+    isolation: float = 0.0  # sum of other-track pT within dR < 0.4
 
     @property
     def mass(self) -> float:
