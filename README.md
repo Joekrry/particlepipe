@@ -2,13 +2,14 @@
 
 **Project**: ParticlePipe - a high-energy-physics (HEP) data pipeline and analysis backend (Python).
 
-**About**: Experimental particle physics produces collision data that must be generated, filtered, reconstructed and analysed through a chain of well-separated processing stages. ParticlePipe builds that chain as a layered Python backend, implementing the physics from first principles with no `numpy`, `ROOT` or `Pythia` in the domain core. It provides relativistic four-vector kinematics, a PDG-accurate particle database, and a collision-event model, together with a seedable Monte Carlo generator that produces Z, J/psi, Higgs-diphoton and minimum-bias events.
+**About**: Experimental particle physics produces collision data that must be generated, filtered, reconstructed and analysed through a chain of well-separated processing stages. ParticlePipe builds that chain as a layered Python backend, implementing the physics from first principles with no `numpy`, `ROOT` or `Pythia` in the domain core. It provides relativistic four-vector kinematics, a PDG-accurate particle database, and a collision-event model, a seedable Monte Carlo generator that produces Z, J/psi, Higgs-diphoton and minimum-bias events, and an asynchronous three-level (L1/L2/L3) trigger that filters events, fits tracks and reconstructs resonances.
 
 **Technical Expectations**
 
 1. Layered architecture with a single, downward dependency direction from the domain core outward.
 1. Physics algorithms implemented from first principles, with no scientific-computing dependency in the domain core.
-1. Deterministic, reproducible event generation from an explicit seed.
+1. Deterministic, reproducible event generation and reconstruction from an explicit seed.
+1. Asynchronous event processing with bounded concurrency built on `asyncio`.
 1. Static typing and consistent formatting enforced through `mypy`, `ruff` and `black`.
 1. ASCII-only, dependency-light source that stays portable across platforms and terminals.
 
@@ -44,7 +45,7 @@ The repository is organised as a layered Python package under `src/`, with an ac
         dependencies point downward; lower layers never import upper
 ```
 
-### Domain model and generator
+### Implemented modules
 
 | Module | Key types | Responsibility |
 |--------|-----------|----------------|
@@ -52,6 +53,7 @@ The repository is organised as a layered Python package under `src/`, with an ac
 | `src/core/particles.py` | `PDG`, `ParticleType`, `Particle` | PDG-2022 masses and charges for 27 species, with a particle object carrying kinematics and reconstruction state. |
 | `src/core/event.py` | `Event`, `TriggerBit`, `PrimaryVertex`, `EventMetadata` | The collision-event record: particle collection, trigger bitmask, primary vertex, run metadata, and event-level observables (scalar HT, missing ET, latency). |
 | `src/pipeline/generator.py` | `CollisionGenerator`, `GeneratorConfig` | Seedable Monte Carlo generator: Z->ll, J/psi->mumu, H->gamma gamma and minimum-bias events, with isotropic two-body decay boosted to the lab frame and beam-profile vertex smearing. |
+| `src/pipeline/trigger.py` | `TriggerPipeline`, `TriggerThresholds`, `apply_l1_trigger`, `apply_l2_trigger`, `apply_l3_reconstruction` | Three-level trigger as pure functions over an `Event` (pT/ET/MET cuts, dR-cone isolation, a simplified Kalman track fit, and OS-pair mass-window reconstruction), wrapped in an async bounded-concurrency pipeline with efficiency and latency stats. |
 
 The package version is declared in `src/__init__.py` (`__version__ = "1.0.0"`).
 
@@ -84,7 +86,24 @@ for event in gen.generate(1000):
     print(event.n_particles, round(event.missing_et, 2))
 ```
 
-Generation is reproducible: two generators built with the same seed produce identical events. Run examples with the package on the path, for example `PYTHONPATH=. python your_script.py`.
+Run generated events through the trigger pipeline and read the per-level efficiencies:
+
+```python
+import asyncio
+from src.pipeline.generator import CollisionGenerator, GeneratorConfig
+from src.pipeline.trigger import TriggerPipeline
+
+async def run():
+    pipeline = TriggerPipeline()
+    gen = CollisionGenerator(GeneratorConfig(seed=42, z_fraction=0.5))
+    for event in gen.generate(200):
+        await pipeline.process_one(event)
+    print(pipeline.stats.l1_rate, pipeline.stats.l2_rate, pipeline.stats.l3_rate)
+
+asyncio.run(run())
+```
+
+Generation and reconstruction are reproducible: the same seed produces identical events and identical trigger decisions. Run examples with the package on the path, for example `PYTHONPATH=. python your_script.py`.
 
 ---
 
