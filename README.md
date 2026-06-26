@@ -2,7 +2,7 @@
 
 **Project**: ParticlePipe - a high-energy-physics (HEP) data pipeline and analysis backend (Python).
 
-**About**: Experimental particle physics produces collision data that must be generated, filtered, reconstructed and analysed through a chain of well-separated processing stages. ParticlePipe builds that chain as a layered Python backend, implementing the physics from first principles with no `numpy`, `ROOT` or `Pythia` in the domain core. It provides relativistic four-vector kinematics, a PDG-accurate particle database, and a collision-event model, a seedable Monte Carlo generator that produces Z, J/psi, Higgs-diphoton and minimum-bias events, and an asynchronous three-level (L1/L2/L3) trigger that filters events, fits tracks and reconstructs resonances.
+**About**: Experimental particle physics produces collision data that must be generated, filtered, reconstructed and analysed through a chain of well-separated processing stages. ParticlePipe builds that chain as a layered Python backend, implementing the physics from first principles with no `numpy`, `ROOT` or `Pythia` in the domain core. It provides relativistic four-vector kinematics, a PDG-accurate particle database, and a collision-event model, a seedable Monte Carlo generator that produces Z, J/psi, Higgs-diphoton and minimum-bias events, an asynchronous three-level (L1/L2/L3) trigger that filters events, fits tracks and reconstructs resonances, and an analysis engine that builds invariant-mass spectra and extracts peak positions, widths and yields.
 
 **Technical Expectations**
 
@@ -54,6 +54,7 @@ The repository is organised as a layered Python package under `src/`, with an ac
 | `src/core/event.py` | `Event`, `TriggerBit`, `PrimaryVertex`, `EventMetadata` | The collision-event record: particle collection, trigger bitmask, primary vertex, run metadata, and event-level observables (scalar HT, missing ET, latency). |
 | `src/pipeline/generator.py` | `CollisionGenerator`, `GeneratorConfig` | Seedable Monte Carlo generator: Z->ll, J/psi->mumu, H->gamma gamma and minimum-bias events, with isotropic two-body decay boosted to the lab frame and beam-profile vertex smearing. |
 | `src/pipeline/trigger.py` | `TriggerPipeline`, `TriggerThresholds`, `apply_l1_trigger`, `apply_l2_trigger`, `apply_l3_reconstruction` | Three-level trigger as pure functions over an `Event` (pT/ET/MET cuts, dR-cone isolation, a simplified Kalman track fit, and OS-pair mass-window reconstruction), wrapped in an async bounded-concurrency pipeline with efficiency and latency stats. |
+| `src/analysis/analysis.py` | `PhysicsAnalysis`, `Histogram1D`, `fit_gaussian_peak`, `GaussianFitResult` | A from-scratch fixed-bin histogram with Poisson errors, a robust peak estimator (sideband background subtraction plus moments) returning mean, width, yield and significance, and an accumulator that builds the mass spectra and kinematic distributions and serialises them to JSON. |
 
 The package version is declared in `src/__init__.py` (`__version__ = "1.0.0"`).
 
@@ -101,6 +102,21 @@ async def run():
     print(pipeline.stats.l1_rate, pipeline.stats.l2_rate, pipeline.stats.l3_rate)
 
 asyncio.run(run())
+```
+
+Accumulate a mass spectrum and fit the Z peak:
+
+```python
+from src.pipeline.generator import CollisionGenerator, GeneratorConfig
+from src.analysis.analysis import PhysicsAnalysis
+
+analysis = PhysicsAnalysis()
+gen = CollisionGenerator(GeneratorConfig(seed=42, z_fraction=0.3))
+for event in gen.generate(2000):
+    analysis.process_event(event)
+
+z = analysis.fit_z_peak()
+print(round(z.mean, 2), round(z.sigma, 2))   # peak near 91 GeV
 ```
 
 Generation and reconstruction are reproducible: the same seed produces identical events and identical trigger decisions. Run examples with the package on the path, for example `PYTHONPATH=. python your_script.py`.
