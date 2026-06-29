@@ -1,8 +1,8 @@
 # ParticlePipe
 
-**Project**: ParticlePipe - a high-energy-physics (HEP) data pipeline and analysis backend (Python).
+**Project**: ParticlePipe - a high-energy-physics (HEP) data pipeline and analysis backend (Python, FastAPI).
 
-**About**: Experimental particle physics produces collision data that must be generated, filtered, reconstructed and analysed through a chain of well-separated processing stages. ParticlePipe builds that chain as a layered Python backend, implementing the physics from first principles with no `numpy`, `ROOT` or `Pythia` in the domain core. It provides relativistic four-vector kinematics, a PDG-accurate particle database, and a collision-event model, a seedable Monte Carlo generator that produces Z, J/psi, Higgs-diphoton and minimum-bias events, an asynchronous three-level (L1/L2/L3) trigger that filters events, fits tracks and reconstructs resonances, and an analysis engine that builds invariant-mass spectra and extracts peak positions, widths and yields.
+**About**: Experimental particle physics produces collision data that must be generated, filtered, reconstructed and analysed through a chain of well-separated processing stages. ParticlePipe builds that chain as a layered Python backend, implementing the physics from first principles with no `numpy`, `ROOT` or `Pythia` in the domain core. It provides relativistic four-vector kinematics, a PDG-accurate particle database, and a collision-event model, a seedable Monte Carlo generator that produces Z, J/psi, Higgs-diphoton and minimum-bias events, an asynchronous three-level (L1/L2/L3) trigger that filters events, fits tracks and reconstructs resonances, and an analysis engine that builds invariant-mass spectra and extracts peak positions, widths and yields, all exposed over a FastAPI REST service with Server-Sent-Events streaming.
 
 **Technical Expectations**
 
@@ -10,6 +10,7 @@
 1. Physics algorithms implemented from first principles, with no scientific-computing dependency in the domain core.
 1. Deterministic, reproducible event generation and reconstruction from an explicit seed.
 1. Asynchronous event processing with bounded concurrency built on `asyncio`.
+1. Typed REST and SSE HTTP interface built on `fastapi` and `pydantic` v2.
 1. Static typing and consistent formatting enforced through `mypy`, `ruff` and `black`.
 1. ASCII-only, dependency-light source that stays portable across platforms and terminals.
 
@@ -55,10 +56,11 @@ The repository is organised as a layered Python package under `src/`, with an ac
 | `src/pipeline/generator.py` | `CollisionGenerator`, `GeneratorConfig` | Seedable Monte Carlo generator: Z->ll, J/psi->mumu, H->gamma gamma and minimum-bias events, with isotropic two-body decay boosted to the lab frame and beam-profile vertex smearing. |
 | `src/pipeline/trigger.py` | `TriggerPipeline`, `TriggerThresholds`, `apply_l1_trigger`, `apply_l2_trigger`, `apply_l3_reconstruction` | Three-level trigger as pure functions over an `Event` (pT/ET/MET cuts, dR-cone isolation, a simplified Kalman track fit, and OS-pair mass-window reconstruction), wrapped in an async bounded-concurrency pipeline with efficiency and latency stats. |
 | `src/analysis/analysis.py` | `PhysicsAnalysis`, `Histogram1D`, `fit_gaussian_peak`, `GaussianFitResult` | A from-scratch fixed-bin histogram with Poisson errors, a robust peak estimator (sideband background subtraction plus moments) returning mean, width, yield and significance, and an accumulator that builds the mass spectra and kinematic distributions and serialises them to JSON. |
+| `src/api/main.py` | `app` (FastAPI), `EventOut`, `RunRequest`, `AnalysisSummaryOut`, ... | The HTTP service: lifespan-managed generator/pipeline/analysis singletons, typed Pydantic v2 request/response models, and endpoints to run the pipeline, stream events over SSE, inspect a single event, and fetch analysis results and metrics. |
 
 The package version is declared in `src/__init__.py` (`__version__ = "1.0.0"`).
 
-**Dependencies**: the domain core and generator depend only on the Python standard library (`math`, `random`, `dataclasses`, `enum`). The project manifest (`requirements.txt`) additionally declares `fastapi`, `uvicorn` and `pydantic` for the service layer, `aiosqlite` for persistence, `pytest`, `pytest-asyncio`, `pytest-cov` and `hypothesis` for testing, and `ruff`, `mypy` and `black` for tooling.
+**Dependencies**: the domain core, generator, trigger and analysis depend only on the Python standard library. The API layer (`src/api`) uses `fastapi`, `uvicorn` and `pydantic`; the manifest also declares `aiosqlite` for persistence, `pytest`, `pytest-asyncio`, `pytest-cov` and `hypothesis` for testing, and `ruff`, `mypy` and `black` for tooling.
 
 ---
 
@@ -118,6 +120,15 @@ for event in gen.generate(2000):
 z = analysis.fit_z_peak()
 print(round(z.mean, 2), round(z.sigma, 2))   # peak near 91 GeV
 ```
+
+Start the HTTP service and open the interactive docs:
+
+```bash
+uvicorn src.api.main:app --reload --port 8000
+# then open http://localhost:8000/docs
+```
+
+Key endpoints: `POST /run` (generate and process events), `GET /analysis` (spectra and peak fits), `GET /events/stream` (Server-Sent Events), `GET /pipeline/stats`, and `GET /health`.
 
 Generation and reconstruction are reproducible: the same seed produces identical events and identical trigger decisions. Run examples with the package on the path, for example `PYTHONPATH=. python your_script.py`.
 
